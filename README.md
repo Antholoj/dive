@@ -51,35 +51,60 @@ CI=true dive <your-image>
 
 ## Model Context Protocol (MCP) Server
 
-`dive` can act as an MCP server, allowing AI agents (like Claude Desktop or IDE extensions) to programmatically analyze images and identify optimization opportunities.
+`dive` can act as an MCP server, allowing AI agents (like Claude Desktop or IDE extensions) to programmatically analyze images, inspect layers, and perform deep diffing between image states.
 
-To start the MCP server:
+### Starting the Server
+
+**Stdio Transport (Default for local agents):**
 ```bash
 dive mcp
 ```
 
-By default, it uses the `stdio` transport. You can also run it as an SSE server:
+**HTTP with SSE Transport (For remote or containerized access):**
 ```bash
-dive mcp --transport sse --port 8080
+dive mcp --transport sse --host localhost --port 8080
 ```
 
 ### Available Tools
-- `analyze_image(image, source)`: Returns efficiency metrics and layer details.
-- `get_wasted_space(image, source)`: Returns the list of top inefficient files.
-- `inspect_layer(image, layer_index, source, path)`: Lists files within a specific layer and path.
+- `analyze_image(image, source)`: Returns a structured JSON summary of efficiency metrics and layer metadata.
+- `get_wasted_space(image, source)`: Returns a JSON list of the top inefficient files (duplicated or moved).
+- `inspect_layer(image, layer_index, path, source)`: Lists files and directories within a specific layer and path.
+- `diff_layers(image, base_layer_index, target_layer_index, source)`: Returns a detailed JSON delta (added/modified/removed) between any two layers.
+
+### Dynamic Resources
+You can reference analysis results as URIs:
+- `dive://image/{name}/summary`: Get the latest analysis summary as JSON.
+- `dive://image/{name}/efficiency`: Get just the efficiency score and wasted bytes.
 
 ### Configuration for Claude Desktop
 Add the following to your `claude_desktop_config.json`:
+
+**For Stdio:**
 ```json
 {
   "mcpServers": {
     "dive": {
-      "command": "dive",
-      "args": ["mcp"]
+      "command": "/path/to/dive",
+      "args": ["mcp", "--quiet"]
     }
   }
 }
 ```
+
+**For HTTP/SSE:**
+```json
+{
+  "mcpServers": {
+    "dive": {
+      "url": "http://localhost:8080/sse"
+    }
+  }
+}
+```
+
+### Security & Performance
+- **Sandbox:** Use `--mcp-sandbox /path/to/archives` to restrict the server's access to local tarballs.
+- **Caching:** The server uses an LRU cache for analysis results. Configure it with `--mcp-cache-size` and `--mcp-cache-ttl`.
 
 ## Basic Features
 
