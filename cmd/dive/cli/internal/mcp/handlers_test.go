@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
@@ -77,11 +78,14 @@ func TestHandlers_SandboxViolation(t *testing.T) {
 
 func TestHandlers_ResourceSummary(t *testing.T) {
 	h := newToolHandlers(options.DefaultMCP())
-	h.analyses.Add("docker:ubuntu:latest", &image.Analysis{
-		Image:       "ubuntu:latest",
-		WastedBytes: 0,
-		SizeBytes:   100,
-		Efficiency:  1.0,
+	h.analyses.Add("docker:ubuntu:latest", cachedAnalysis{
+		Analysis: &image.Analysis{
+			Image:       "ubuntu:latest",
+			WastedBytes: 0,
+			SizeBytes:   100,
+			Efficiency:  1.0,
+		},
+		Timestamp: time.Now(),
 	})
 
 	ctx := context.Background()
@@ -98,6 +102,29 @@ func TestHandlers_ResourceSummary(t *testing.T) {
 	err = json.Unmarshal([]byte(textRes.Text), &summary)
 	assert.NoError(t, err)
 	assert.Equal(t, "ubuntu:latest", summary.Image)
+}
+
+func TestHandlers_CacheTTL(t *testing.T) {
+	opts := options.DefaultMCP()
+	opts.CacheTTL = "1ms" // Very short TTL
+	h := newToolHandlers(opts)
+	
+	h.analyses.Add("docker-archive:invalid.tar", cachedAnalysis{
+		Analysis: &image.Analysis{
+			Image: "invalid.tar",
+		},
+		Timestamp: time.Now().Add(-1 * time.Hour), // Way in the past
+	})
+
+	ctx := context.Background()
+	// This should trigger a real analysis attempts because cache is expired
+	imageName := "invalid.tar"
+	sourceStr := "docker-archive"
+	
+	_, err := h.getAnalysis(ctx, imageName, sourceStr)
+	// It should fail to find the file, proving it didn't use the cache
+	assert.Error(t, err) 
+	assert.Contains(t, err.Error(), "no such file or directory")
 }
 
 func TestHandlers_DiffLayers(t *testing.T) {

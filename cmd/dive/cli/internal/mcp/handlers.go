@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -18,9 +19,14 @@ import (
 	"github.com/wagoodman/dive/internal/log"
 )
 
+type cachedAnalysis struct {
+	Analysis  *image.Analysis
+	Timestamp time.Time
+}
+
 type toolHandlers struct {
 	opts     options.MCP
-	analyses *lru.Cache[string, *image.Analysis]
+	analyses *lru.Cache[string, cachedAnalysis]
 }
 
 func newToolHandlers(opts options.MCP) *toolHandlers {
@@ -28,7 +34,7 @@ func newToolHandlers(opts options.MCP) *toolHandlers {
 	if cacheSize <= 0 {
 		cacheSize = 10
 	}
-	cache, _ := lru.New[string, *image.Analysis](cacheSize)
+	cache, _ := lru.New[string, cachedAnalysis](cacheSize)
 	return &toolHandlers{
 		opts:     opts,
 		analyses: cache,
@@ -139,11 +145,15 @@ func (h *toolHandlers) getAnalysis(ctx context.Context, imageName string, source
 
 	cacheKey := fmt.Sprintf("%s:%s", sourceStr, imageName)
 
-	if analysis, ok := h.analyses.Get(cacheKey); ok {
-		return analysis, nil
+	if cached, ok := h.analyses.Get(cacheKey); ok {
+		ttl, err := time.ParseDuration(h.opts.CacheTTL)
+		if err == nil && time.Since(cached.Timestamp) < ttl {
+			return cached.Analysis, nil
+		}
+		h.analyses.Remove(cacheKey)
 	}
 
-	log.Infof("Image %s not in cache, analyzing...", imageName)
+	log.Infof("Image %s not in cache or expired, analyzing...", imageName)
 	resolver, err := dive.GetImageResolver(source)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get image resolver: %v", err)
@@ -159,7 +169,10 @@ func (h *toolHandlers) getAnalysis(ctx context.Context, imageName string, source
 		return nil, fmt.Errorf("cannot analyze image: %v", err)
 	}
 
-	h.analyses.Add(cacheKey, analysis)
+	h.analyses.Add(cacheKey, cachedAnalysis{
+		Analysis:  analysis,
+		Timestamp: time.Now(),
+	})
 	return analysis, nil
 }
 

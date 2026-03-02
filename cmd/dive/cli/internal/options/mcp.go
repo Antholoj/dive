@@ -20,6 +20,8 @@ type MCP struct {
 	Sandbox string `yaml:"sandbox" json:"sandbox" mapstructure:"sandbox"`
 	// CacheSize is the maximum number of analysis results to cache
 	CacheSize int `yaml:"cache-size" json:"cache-size" mapstructure:"cache-size"`
+	// CacheTTL is the time analysis results stay in cache before being considered stale
+	CacheTTL string `yaml:"cache-ttl" json:"cache-ttl" mapstructure:"cache-ttl"`
 }
 
 func DefaultMCP() MCP {
@@ -28,6 +30,7 @@ func DefaultMCP() MCP {
 		Host:      "localhost",
 		Port:      8080,
 		CacheSize: 10,
+		CacheTTL:  "24h",
 	}
 }
 
@@ -37,4 +40,5 @@ func (o *MCP) AddFlags(flags clio.FlagSet) {
 	flags.IntVarP(&o.Port, "port", "", "The port to listen on for the MCP HTTP/SSE server.")
 	flags.StringVarP(&o.Sandbox, "mcp-sandbox", "", "A directory to restrict docker-archive lookups to.")
 	flags.IntVarP(&o.CacheSize, "mcp-cache-size", "", "The maximum number of analysis results to cache.")
+	flags.StringVarP(&o.CacheTTL, "mcp-cache-ttl", "", "The duration to keep analysis results in cache (e.g. 1h, 30m).")
 }
