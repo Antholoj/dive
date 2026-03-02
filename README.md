@@ -49,6 +49,38 @@ CI=true dive <your-image>
 
 **This is beta quality!** *Feel free to submit an issue if you want a new feature or find a bug :)*
 
+## Model Context Protocol (MCP) Server
+
+`dive` can act as an MCP server, allowing AI agents (like Claude Desktop or IDE extensions) to programmatically analyze images and identify optimization opportunities.
+
+To start the MCP server:
+```bash
+dive mcp
+```
+
+By default, it uses the `stdio` transport. You can also run it as an SSE server:
+```bash
+dive mcp --transport sse --port 8080
+```
+
+### Available Tools
+- `analyze_image(image, source)`: Returns efficiency metrics and layer details.
+- `get_wasted_space(image, source)`: Returns the list of top inefficient files.
+- `inspect_layer(image, layer_index, source, path)`: Lists files within a specific layer and path.
+
+### Configuration for Claude Desktop
+Add the following to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "dive": {
+      "command": "dive",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
 ## Basic Features
 
 **Show Docker image contents broken down by layer**
