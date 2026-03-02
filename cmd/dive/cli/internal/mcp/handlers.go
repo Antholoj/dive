@@ -3,6 +3,9 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -24,6 +27,28 @@ func newToolHandlers() *toolHandlers {
 }
 
 func (h *toolHandlers) getAnalysis(ctx context.Context, imageName string, sourceStr string) (*image.Analysis, error) {
+	// Heuristic: if imageName ends in .tar and source is docker, assume docker-archive
+	if strings.HasSuffix(imageName, ".tar") && sourceStr == "docker" {
+		sourceStr = "docker-archive"
+		// If the file doesn't exist at the given path, check .data/
+		if _, err := os.Stat(imageName); os.IsNotExist(err) {
+			wd, _ := os.Getwd()
+			// Navigate up from cmd/dive/cli/internal/mcp to root if needed
+			// (During real runs, Getwd is project root)
+			root := wd
+			for i := 0; i < 5; i++ {
+				if _, err := os.Stat(filepath.Join(root, "go.mod")); err == nil {
+					break
+				}
+				root = filepath.Dir(root)
+			}
+			dataPath := filepath.Join(root, ".data", imageName)
+			if _, err := os.Stat(dataPath); err == nil {
+				imageName = dataPath
+			}
+		}
+	}
+
 	source := dive.ParseImageSource(sourceStr)
 	if source == dive.SourceUnknown {
 		return nil, fmt.Errorf("unknown image source: %s", sourceStr)
@@ -103,7 +128,7 @@ func (h *toolHandlers) getWastedSpaceHandler(ctx context.Context, request mcp.Ca
 	}
 
 	if len(analysis.Inefficiencies) == 0 {
-		return mcp.NewToolResultText("No wasted space detected in this image.")
+		return mcp.NewToolResultText("No wasted space detected in this image."), nil
 	}
 
 	summary := h.formatWastedSpace(analysis)
@@ -180,4 +205,106 @@ func (h *toolHandlers) inspectLayerHandler(ctx context.Context, request mcp.Call
 	}
 
 	return mcp.NewToolResultText(summary), nil
+}
+
+// --- Resource Handlers ---
+
+func (h *toolHandlers) resourceSummaryHandler(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	// URI pattern: dive://image/{name}/summary
+	parts := strings.Split(request.Params.URI, "/")
+	if len(parts) < 5 {
+		return nil, fmt.Errorf("invalid resource URI: %s", request.Params.URI)
+	}
+	imageName := parts[3]
+	
+	analysis, err := h.getAnalysis(ctx, imageName, "docker")
+	if err != nil {
+		return nil, err
+	}
+
+	content := h.formatSummary(analysis)
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      request.Params.URI,
+			MIMEType: "text/plain",
+			Text:     content,
+		},
+	}, nil
+}
+
+func (h *toolHandlers) resourceEfficiencyHandler(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	// URI pattern: dive://image/{name}/efficiency
+	parts := strings.Split(request.Params.URI, "/")
+	if len(parts) < 5 {
+		return nil, fmt.Errorf("invalid resource URI: %s", request.Params.URI)
+	}
+	imageName := parts[3]
+	
+	analysis, err := h.getAnalysis(ctx, imageName, "docker")
+	if err != nil {
+		return nil, err
+	}
+
+	content := fmt.Sprintf("Efficiency Score: %.2f%%\nWasted Space: %d bytes\n", analysis.Efficiency*100, analysis.WastedBytes)
+	return []mcp.ResourceContents{
+		mcp.TextResourceContents{
+			URI:      request.Params.URI,
+			MIMEType: "text/plain",
+			Text:     content,
+		},
+	}, nil
+}
+
+// --- Prompt Handlers ---
+
+func (h *toolHandlers) promptOptimizeDockerfileHandler(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	imageName, ok := request.Params.Arguments["image"]
+	if !ok {
+		return nil, fmt.Errorf("image argument is required")
+	}
+
+	analysis, err := h.getAnalysis(ctx, imageName, "docker")
+	if err != nil {
+		return nil, err
+	}
+
+	wasted := h.formatWastedSpace(analysis)
+	summary := h.formatSummary(analysis)
+
+	return &mcp.GetPromptResult{
+		Description: "Optimize Dockerfile based on Dive analysis",
+		Messages: []mcp.PromptMessage{
+			{
+				Role: mcp.RoleUser,
+				Content: mcp.TextContent{
+					Type: "text",
+					Text: fmt.Sprintf("You are an expert in Docker and OCI image optimization. Your findings for image '%s':\n\n%s\n\n%s\n\nPlease suggest optimizations for the Dockerfile.", imageName, summary, wasted),
+				},
+			},
+		},
+	}, nil
+}
+
+func (h *toolHandlers) promptExplainLayerHandler(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	imageName, ok := request.Params.Arguments["image"]
+	if !ok {
+		return nil, fmt.Errorf("image argument is required")
+	}
+	layerIdxStr, ok := request.Params.Arguments["layer_index"]
+	if !ok {
+		return nil, fmt.Errorf("layer_index argument is required")
+	}
+
+	return &mcp.GetPromptResult{
+		Description: "Explain the impact of a specific image layer",
+		Messages: []mcp.PromptMessage{
+			{
+				Role: mcp.RoleUser,
+				Content: mcp.TextContent{
+					Type: "text",
+					Text: fmt.Sprintf("Can you explain what is happening in layer %s of image '%s'?", layerIdxStr, imageName),
+				},
+			},
+		},
+	}, nil
 }

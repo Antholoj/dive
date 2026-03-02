@@ -70,6 +70,53 @@ func NewServer(id clio.Identification) *server.MCPServer {
 	)
 	s.AddTool(inspectLayerTool, h.inspectLayerHandler)
 
+	// --- Resources ---
+
+	// 1. Summary resource template
+	summaryTemplate := mcp.NewResourceTemplate("dive://image/{name}/summary", "Image Summary",
+		mcp.WithTemplateDescription("Get a text summary of the image analysis"),
+	)
+	s.AddResourceTemplate(summaryTemplate, h.resourceSummaryHandler)
+
+	// 2. Efficiency resource template
+	efficiencyTemplate := mcp.NewResourceTemplate("dive://image/{name}/efficiency", "Image Efficiency",
+		mcp.WithTemplateDescription("Get the efficiency score and wasted bytes for an image"),
+	)
+	s.AddResourceTemplate(efficiencyTemplate, h.resourceEfficiencyHandler)
+
+	// --- Prompts ---
+
+	// 1. Optimize Dockerfile prompt
+	s.AddPrompt(mcp.Prompt{
+		Name:        "optimize-dockerfile",
+		Description: "Get suggestions for optimizing a Dockerfile based on image analysis",
+		Arguments: []mcp.PromptArgument{
+			{
+				Name:        "image",
+				Description: "The name of the image to optimize",
+				Required:    true,
+			},
+		},
+	}, h.promptOptimizeDockerfileHandler)
+
+	// 2. Explain Layer prompt
+	s.AddPrompt(mcp.Prompt{
+		Name:        "explain-layer",
+		Description: "Get an explanation of the impact of a specific image layer",
+		Arguments: []mcp.PromptArgument{
+			{
+				Name:        "image",
+				Description: "The name of the image",
+				Required:    true,
+			},
+			{
+				Name:        "layer_index",
+				Description: "The index of the layer to explain",
+				Required:    true,
+			},
+		},
+	}, h.promptExplainLayerHandler)
+
 	return s
 }
 
@@ -84,12 +131,9 @@ func Run(s *server.MCPServer, opts options.MCP) error {
 		mux.Handle("/messages", sseServer.MessageHandler())
 
 		log.Infof("Starting MCP SSE server on %s", addr)
-		fmt.Printf("Starting MCP SSE server on %s
-", addr)
-		fmt.Printf("- SSE endpoint: http://%s/sse
-", addr)
-		fmt.Printf("- Message endpoint: http://%s/messages
-", addr)
+		fmt.Printf("Starting MCP SSE server on %s\n", addr)
+		fmt.Printf("- SSE endpoint: http://%s/sse\n", addr)
+		fmt.Printf("- Message endpoint: http://%s/messages\n", addr)
 
 		return http.ListenAndServe(addr, mux)
 	case "stdio":
