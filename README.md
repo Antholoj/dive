@@ -106,6 +106,24 @@ Add the following to your `claude_desktop_config.json`:
 - **Sandbox:** Use `--mcp-sandbox /path/to/archives` to restrict the server's access to local tarballs.
 - **Caching:** The server uses an LRU cache for analysis results. Configure it with `--mcp-cache-size` and `--mcp-cache-ttl`.
 
+### Persistent Configuration
+You can also configure the MCP server in your `.dive.yaml` file:
+
+```yaml
+mcp:
+  # The transport to use: stdio or sse
+  transport: sse
+  host: 0.0.0.0
+  port: 8080
+  
+  # Security sandbox for local archives
+  sandbox: /path/to/archives
+  
+  # Performance tuning
+  cache-size: 20
+  cache-ttl: 24h
+```
+
 ## Basic Features
 
 **Show Docker image contents broken down by layer**
