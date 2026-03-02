@@ -11,7 +11,7 @@ import (
 	"github.com/wagoodman/dive/internal/log"
 )
 
-func NewServer(id clio.Identification) *server.MCPServer {
+func NewServer(id clio.Identification, opts options.MCP) *server.MCPServer {
 	s := server.NewMCPServer(
 		id.Name,
 		id.Version,
@@ -20,13 +20,13 @@ func NewServer(id clio.Identification) *server.MCPServer {
 		server.WithPromptCapabilities(true),
 	)
 
-	h := newToolHandlers()
+	h := newToolHandlers(opts)
 
 	// --- Tools ---
 
 	// 1. analyze_image tool
 	analyzeTool := mcp.NewTool("analyze_image",
-		mcp.WithDescription("Analyze a docker image and return efficiency metrics and layer details"),
+		mcp.WithDescription("Analyze a docker image and return efficiency metrics and layer details (JSON)"),
 		mcp.WithString("image",
 			mcp.Required(),
 			mcp.Description("The name of the image to analyze (e.g., 'ubuntu:latest')"),
@@ -39,10 +39,10 @@ func NewServer(id clio.Identification) *server.MCPServer {
 
 	// 2. get_wasted_space tool
 	wastedSpaceTool := mcp.NewTool("get_wasted_space",
-		mcp.WithDescription("Get the list of inefficient files that contribute to wasted space in the image"),
+		mcp.WithDescription("Get the list of inefficient files that contribute to wasted space in the image (JSON)"),
 		mcp.WithString("image",
 			mcp.Required(),
-			mcp.Description("The name of the image to get wasted space for (must be analyzed first)"),
+			mcp.Description("The name of the image to get wasted space for"),
 		),
 		mcp.WithString("source",
 			mcp.Description("The container engine to fetch the image from (docker, podman, docker-archive). Defaults to 'docker'."),
@@ -52,7 +52,7 @@ func NewServer(id clio.Identification) *server.MCPServer {
 
 	// 3. inspect_layer tool
 	inspectLayerTool := mcp.NewTool("inspect_layer",
-		mcp.WithDescription("Inspect the contents of a specific layer in an image"),
+		mcp.WithDescription("Inspect the contents of a specific layer in an image (JSON)"),
 		mcp.WithString("image",
 			mcp.Required(),
 			mcp.Description("The name of the image to inspect"),
@@ -70,17 +70,38 @@ func NewServer(id clio.Identification) *server.MCPServer {
 	)
 	s.AddTool(inspectLayerTool, h.inspectLayerHandler)
 
+	// 4. diff_layers tool
+	diffLayersTool := mcp.NewTool("diff_layers",
+		mcp.WithDescription("Compare two layers in an image and return file changes (JSON)"),
+		mcp.WithString("image",
+			mcp.Required(),
+			mcp.Description("The name of the image"),
+		),
+		mcp.WithNumber("base_layer_index",
+			mcp.Required(),
+			mcp.Description("The index of the base layer for comparison"),
+		),
+		mcp.WithNumber("target_layer_index",
+			mcp.Required(),
+			mcp.Description("The index of the target layer to compare against the base"),
+		),
+		mcp.WithString("source",
+			mcp.Description("The container engine to fetch the image from (docker, podman, docker-archive). Defaults to 'docker'."),
+		),
+	)
+	s.AddTool(diffLayersTool, h.diffLayersHandler)
+
 	// --- Resources ---
 
 	// 1. Summary resource template
 	summaryTemplate := mcp.NewResourceTemplate("dive://image/{name}/summary", "Image Summary",
-		mcp.WithTemplateDescription("Get a text summary of the image analysis"),
+		mcp.WithTemplateDescription("Get a JSON summary of the image analysis"),
 	)
 	s.AddResourceTemplate(summaryTemplate, h.resourceSummaryHandler)
 
 	// 2. Efficiency resource template
 	efficiencyTemplate := mcp.NewResourceTemplate("dive://image/{name}/efficiency", "Image Efficiency",
-		mcp.WithTemplateDescription("Get the efficiency score and wasted bytes for an image"),
+		mcp.WithTemplateDescription("Get the efficiency score and wasted bytes for an image (JSON)"),
 	)
 	s.AddResourceTemplate(efficiencyTemplate, h.resourceEfficiencyHandler)
 

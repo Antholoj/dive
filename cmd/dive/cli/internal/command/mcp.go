@@ -19,7 +19,7 @@ func MCP(app clio.Application, id clio.Identification) *cobra.Command {
 		Use:   "mcp",
 		Short: "Start the Model Context Protocol (MCP) server.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s := mcp.NewServer(id)
+			s := mcp.NewServer(id, opts.MCP)
 			return mcp.Run(s, opts.MCP)
 		},
 	}, opts)
