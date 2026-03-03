@@ -104,7 +104,28 @@ Agents can also "read" analysis results via URI:
 
 ---
 
-## 4. Security & Performance Tuning
+## 4. Powerful Usage Examples
+
+Once the server is connected, you can use natural language prompts to perform complex analysis. Here are a few examples of what you can ask your AI agent:
+
+### A. Efficiency Health Check
+> "Analyze the image 'my-app:latest' and tell me the efficiency score and total wasted space. Is it performing well compared to industry standards?"
+
+### B. Identifying Bloat
+> "Show me the top 10 most inefficient files in 'node:20-alpine'. I want to see which layers they are located in and how much space they are wasting."
+
+### C. Troubleshooting Layer Growth
+> "I just added a new layer to my Dockerfile and the image size jumped by 500MB unexpectedly. Can you inspect the latest layer of 'my-app:dev' and find the specific files causing this growth?"
+
+### D. Deep Diffing for Debugging
+> "Compare layer 3 and layer 4 of 'custom-service:v2'. Show me exactly which files were added or modified in that transition so I can understand the build impact."
+
+### E. AI-Driven Optimization
+> "Use the 'optimize-dockerfile' prompt for image 'python:3.11-slim'. Based on the analysis, give me 3 specific recommendations to reduce the image size without breaking the application."
+
+---
+
+## 5. Security & Performance Tuning
 
 ### Security Sandbox
 To prevent the AI from accessing arbitrary tarballs on your host, use the sandbox flag to restrict `docker-archive` lookups:
