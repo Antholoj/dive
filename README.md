@@ -53,76 +53,19 @@ CI=true dive <your-image>
 
 `dive` can act as an MCP server, allowing AI agents (like Claude Desktop or IDE extensions) to programmatically analyze images, inspect layers, and perform deep diffing between image states.
 
-### Starting the Server
+For detailed instructions on configuration, transport options, and client setup, see the [Comprehensive MCP Guide](docs/MCP_GUIDE.md).
 
-**Stdio Transport (Default for local agents):**
+### Quick Start (Stdio)
 ```bash
-dive mcp
+dive mcp --quiet
 ```
 
-**HTTP with SSE Transport (For remote or containerized access):**
+### Quick Start (HTTP)
 ```bash
-dive mcp --transport sse --host localhost --port 8080
+dive mcp --transport streamable-http --port 8080
 ```
+- **Endpoint:** `http://localhost:8080/mcp`
 
-### Available Tools
-- `analyze_image(image, source)`: Returns a structured JSON summary of efficiency metrics and layer metadata.
-- `get_wasted_space(image, source)`: Returns a JSON list of the top inefficient files (duplicated or moved).
-- `inspect_layer(image, layer_index, path, source)`: Lists files and directories within a specific layer and path.
-- `diff_layers(image, base_layer_index, target_layer_index, source)`: Returns a detailed JSON delta (added/modified/removed) between any two layers.
-
-### Dynamic Resources
-You can reference analysis results as URIs:
-- `dive://image/{name}/summary`: Get the latest analysis summary as JSON.
-- `dive://image/{name}/efficiency`: Get just the efficiency score and wasted bytes.
-
-### Configuration for Claude Desktop
-Add the following to your `claude_desktop_config.json`:
-
-**For Stdio:**
-```json
-{
-  "mcpServers": {
-    "dive": {
-      "command": "/path/to/dive",
-      "args": ["mcp", "--quiet"]
-    }
-  }
-}
-```
-
-**For HTTP/SSE:**
-```json
-{
-  "mcpServers": {
-    "dive": {
-      "url": "http://localhost:8080/sse"
-    }
-  }
-}
-```
-
-### Security & Performance
-- **Sandbox:** Use `--mcp-sandbox /path/to/archives` to restrict the server's access to local tarballs.
-- **Caching:** The server uses an LRU cache for analysis results. Configure it with `--mcp-cache-size` and `--mcp-cache-ttl`.
-
-### Persistent Configuration
-You can also configure the MCP server in your `.dive.yaml` file:
-
-```yaml
-mcp:
-  # The transport to use: stdio or sse
-  transport: sse
-  host: 0.0.0.0
-  port: 8080
-  
-  # Security sandbox for local archives
-  sandbox: /path/to/archives
-  
-  # Performance tuning
-  cache-size: 20
-  cache-ttl: 24h
-```
 
 ## Basic Features
 
