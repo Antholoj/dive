@@ -13,15 +13,18 @@ Before running the MCP server, you need to build the `dive` binary from source t
 - **Task** (Optional): A task runner for simplified builds.
 
 ### Standard Build (Recommended)
-If you have `task` installed:
+If you have `task` or `make` installed:
 ```bash
-# Build the binary for your local platform
+# Using Task
 task build-local
+
+# Using Make
+make build
 ```
-The binary will be created at `./dive`.
+The binary will be created at `./dive` (when using `task build-local`) or inside the `snapshot/` directory (when using `make build`).
 
 ### Manual Build
-Alternatively, use the standard Go compiler:
+Alternatively, use the standard Go compiler directly:
 ```bash
 go build -o dive ./cmd/dive
 ```
