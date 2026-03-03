@@ -35,7 +35,7 @@ func DefaultMCP() MCP {
 }
 
 func (o *MCP) AddFlags(flags clio.FlagSet) {
-	flags.StringVarP(&o.Transport, "transport", "t", "The transport to use for the MCP server (stdio, sse).")
+	flags.StringVarP(&o.Transport, "transport", "t", "The transport to use for the MCP server (stdio, sse, streamable-http).")
 	flags.StringVarP(&o.Host, "host", "", "The host to listen on for the MCP HTTP/SSE server.")
 	flags.IntVarP(&o.Port, "port", "", "The port to listen on for the MCP HTTP/SSE server.")
 	flags.StringVarP(&o.Sandbox, "mcp-sandbox", "", "A directory to restrict docker-archive lookups to.")
