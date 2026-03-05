@@ -66,7 +66,69 @@ dive mcp --transport sse --port 8080
 
 ---
 
-## 3. Connecting MCP Clients
+## 3. Using the Pre-built Docker Image
+
+For a hassle-free setup, you can use the official **Dive MCP** image from Docker Hub. This image supports the classic Dive UI, CI mode, and all MCP transport protocols.
+
+### Pull the Image
+```bash
+docker pull antholoj/dive-mcp:latest
+```
+
+### Building the Image Locally
+If you want to build this specific MCP image yourself (e.g., to include local changes), use the following command. Note that this uses a dedicated ignore file (`Dockerfile.mcp.dockerignore`) to bypass the project's default restrictions on source directories:
+
+```bash
+# Build the MCP-optimized image
+DOCKER_BUILDKIT=1 docker build -f Dockerfile.mcp -t antholoj/dive-mcp:latest .
+```
+
+### Running in Different Modes
+
+#### A. Classic UI / CLI
+To analyze an image using the standard interactive UI:
+```bash
+docker run --rm -it \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  antholoj/dive-mcp:latest <your-image-tag>
+```
+
+#### B. CI Mode
+To run an automated efficiency check:
+```bash
+docker run --rm -e CI=true \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  antholoj/dive-mcp:latest <your-image-tag>
+```
+
+#### C. MCP Server (Recommended)
+When running as an MCP server in a container, ensure you map the port and set the host to `0.0.0.0`.
+
+**1. Streamable HTTP (Modern):**
+```bash
+docker run --rm -p 8080:8080 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  antholoj/dive-mcp:latest mcp --transport streamable-http --host 0.0.0.0
+```
+- **Endpoint:** `http://localhost:8080/mcp`
+
+**2. Stdio (For local agents):**
+```bash
+docker run --rm -i \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  antholoj/dive-mcp:latest mcp --quiet
+```
+
+**3. SSE (Legacy):**
+```bash
+docker run --rm -p 8080:8080 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  antholoj/dive-mcp:latest mcp --transport sse --host 0.0.0.0
+```
+
+---
+
+## 4. Connecting MCP Clients
 
 ### Claude Desktop
 Add `dive` to your `claude_desktop_config.json` (usually found in `%APPDATA%\Claude\claude_desktop_config.json` on Windows or `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS).
